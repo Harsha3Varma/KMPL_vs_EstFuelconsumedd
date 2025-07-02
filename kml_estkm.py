@@ -1,8 +1,9 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-import ipywidgets as widgets
 from IPython.display import display, clear_output
 import mplcursors
+
+vehicle = st.text_input("Enter Vehicle Number").strip().upper()
 
 # Load data if not already
 try:
