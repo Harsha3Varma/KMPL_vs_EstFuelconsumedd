@@ -1,57 +1,75 @@
+# streamlit_app.py
+
+import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
-from IPython.display import display, clear_output
-import mplcursors
+import plotly.express as px
 
-vehicle = st.text_input("Enter Vehicle Number").strip().upper()
+# ——— Page config —————————————————————————————
+st.set_page_config(
+    page_title="Vehicle Fuel Efficiency Explorer",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-# Load data if not already
-try:
-    master_df
-except NameError:
-    master_df = pd.read_excel('task1.xlsx')
+st.title("🚗 KMPL vs Estimated Fuel Consumed Explorer")
+st.markdown(
+    """
+    Enter a **Vehicle Number** to see how its fuel consumption (Est_fuel_Consumed) 
+    varies with kilometers‑per‑liter (Last_Tnx_Kmpl).
+    """
+)
 
-# Prepare dataframe
-master_df['Est_fuel_Consumed'] = pd.to_numeric(master_df['Est_fuel_Consumed'], errors='coerce')
-master_df['Last_Tnx_Kmpl'] = pd.to_numeric(master_df['Last_Tnx_Kmpl'], errors='coerce')
-base_df = master_df[(master_df['Est_fuel_Consumed'] <= 90)].dropna(subset=['Est_fuel_Consumed','Last_Tnx_Kmpl','Vehicle_no']).copy()
+# ——— Load & clean data ——————————————————————————
+@st.cache_data
+def load_data(path="task1.xlsx"):
+    df = pd.read_excel(path)
+    # ensure numeric
+    df["Est_fuel_Consumed"] = pd.to_numeric(df["Est_fuel_Consumed"], errors="coerce")
+    df["Last_Tnx_Kmpl"]    = pd.to_numeric(df["Last_Tnx_Kmpl"], errors="coerce")
+    return df.dropna(subset=["Vehicle_no", "Est_fuel_Consumed", "Last_Tnx_Kmpl"])
 
-# Widgets
-text_in = widgets.Text(description='Vehicle No:')
-output_area = widgets.Output()
+df = load_data()
 
-# Callback
+# ——— Sidebar input ————————————————————————————
+vehicle = st.sidebar.text_input("Vehicle Number", "").strip().upper()
 
-def handle_submit(change):
-    with output_area:
-        clear_output(wait=True)
-        v = change.value.strip()
-        if v == '':
-            print('Please enter a vehicle number.')
-            return
-        vdf = base_df[base_df['Vehicle_no'] == v].copy()
-        if vdf.empty:
-            print('No records found for vehicle', v)
-            return
-        if 'Created_date' in vdf.columns:
-            vdf['Created_date'] = pd.to_datetime(vdf['Created_date'], errors='coerce')
-            vdf = vdf.sort_values('Created_date')
-        fig, ax = plt.subplots(figsize=(9,5))
-        line, = ax.plot(vdf['Last_Tnx_Kmpl'], vdf['Est_fuel_Consumed'], marker='o', linestyle='-', color='navy')
-        ax.set_xlabel('Last Transaction KMPL')
-        ax.set_ylabel('Estimated Fuel Consumed (<=70)')
-        ax.set_title('Vehicle ' + v + ': KMPL vs Fuel Consumed')
-        ax.grid(True)
-        mplcursors.cursor(line, hover=True).connect("add", lambda sel: sel.annotation.set_text(
-            'Fuel Consumed: ' + str(round(vdf['Est_fuel_Consumed'].iloc[sel.target.index],2)) + '\
-KMPL: ' + str(round(vdf['Last_Tnx_Kmpl'].iloc[sel.target.index],2))))
-        plt.tight_layout()
-        plt.show()
-        print(vdf[['Vehicle_no','Last_Tnx_Kmpl','Est_fuel_Consumed']].head())
+if vehicle:
+    vdf = df[df["Vehicle_no"].str.upper() == vehicle]
+    if vdf.empty:
+        st.error(f"No records found for vehicle **{vehicle}**.")
+    else:
+        # optional: sort by Created_date if present
+        if "Created_date" in vdf.columns:
+            vdf["Created_date"] = pd.to_datetime(vdf["Created_date"], errors="coerce")
+            vdf = vdf.sort_values("Created_date")
 
-text_in.on_submit(handle_submit)
+        # ——— Build interactive chart ——————————————————
+        fig = px.line(
+            vdf,
+            x="Last_Tnx_Kmpl",
+            y="Est_fuel_Consumed",
+            markers=True,
+            title=f"Vehicle {vehicle}: KMPL vs Estimated Fuel Consumed",
+            labels={
+                "Last_Tnx_Kmpl": "Last Transaction (KMPL)",
+                "Est_fuel_Consumed": "Estimated Fuel Consumed"
+            },
+            hover_data={
+                "Last_Tnx_Kmpl": ":.2f",
+                "Est_fuel_Consumed": ":.2f"
+            }
+        )
+        fig.update_layout(
+            hovermode="closest",
+            margin=dict(l=40, r=40, t=80, b=40)
+        )
 
-display(text_in)
-display(output_area)
+        st.plotly_chart(fig, use_container_width=True)
 
-print('Type a vehicle number and press Enter to generate its graph. Hover over points to see fuel-consumed and KMPL values.')
+        # show raw data table
+        st.subheader("Underlying Data")
+        st.dataframe(vdf[[
+            "Vehicle_no", "Last_Tnx_Kmpl", "Est_fuel_Consumed", "Created_date"
+        ]].reset_index(drop=True))
+else:
+    st.info("🔎 Enter a vehicle number in the sidebar to get started.")
