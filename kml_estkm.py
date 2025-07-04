@@ -31,7 +31,7 @@ def load_data(path="task1.xlsx"):
 df = load_data()
 
 # ——— Sidebar input ————————————————————————————
-vehicle = st.sidebar.text_input("Vehicle Number", "").strip().upper()
+vehicle = st.text_input("Vehicle Number", "").strip().upper()
 
 if vehicle:
     vdf = df[df["Vehicle_no"].str.upper() == vehicle]
