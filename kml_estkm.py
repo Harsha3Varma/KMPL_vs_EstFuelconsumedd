@@ -4,7 +4,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# ——— Page config —————————————————————————————
+# Page config 
 st.set_page_config(
     page_title="Vehicle Fuel Efficiency Explorer",
     layout="wide",
@@ -19,7 +19,7 @@ st.markdown(
     """
 )
 
-# ——— Load & clean data ——————————————————————————
+#  Load & clean data
 @st.cache_data
 def load_data(path="task1.xlsx"):
     df = pd.read_excel(path)
@@ -30,7 +30,7 @@ def load_data(path="task1.xlsx"):
 
 df = load_data()
 
-# ——— Sidebar input ————————————————————————————
+#  Sidebar input 
 vehicle = st.text_input("Vehicle Number", "").strip().upper()
 
 if vehicle:
@@ -43,7 +43,7 @@ if vehicle:
             vdf["Created_date"] = pd.to_datetime(vdf["Created_date"], errors="coerce")
             vdf = vdf.sort_values("Created_date")
 
-        # ——— Build interactive chart ——————————————————
+        #  Build interactive chart 
         fig = px.line(
             vdf,
             x="Last_Tnx_Kmpl",
